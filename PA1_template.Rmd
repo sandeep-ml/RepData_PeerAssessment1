@@ -1,25 +1,184 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 output: 
-  html_document:
-    keep_md: true
+html_document:
+keep_md: true
 ---
-
-
+  
+  
 ## Loading and preprocessing the data
+  
+1. Unzip the zip file
 
+```{r}
+zipFile <- "activity.zip"  
+unzip(zipFile)
+```
+  
+2. Extract the data
 
+```{r}
+data <- read.csv(file = "activity.csv")
+```
+  
+3. Use the **lubridate** library to transform the *date* column of the **data** variable
 
-## What is mean total number of steps taken per day?
+```{r}
+library(lubridate)
+data$date <- ymd(data$date)
+```
+  
+  
+## Mean total number of steps taken per day
+  
+1. Computing the aggregate information carrying the total number of steps treaded on each day
 
+```{r}
+total_steps_per_day <- aggregate(formula = steps~date, data = data, FUN = sum, na.rm=TRUE)
+```
+  
+2. Plot of the total number of steps treaded everyday
 
+```{r}
+par(mfrow = c(1, 2))
+plot(total_steps_per_day, type = "l")
+barplot(height = total_steps_per_day$steps, xlab = "date", ylab = "steps")
+```
+  
+3. Average total number of steps taken per day is
 
+```{r}
+round(mean(total_steps_per_day$steps))
+```
+  
+4. Median total number of steps taken per day is
+
+```{r}
+round(median(total_steps_per_day$steps))
+```
+  
+  
 ## What is the average daily activity pattern?
+  
+1. Computing the aggregate information carrying the total number of steps treaded on each time-slot of the day
 
+```{r}
+total_steps_per_interval <- aggregate(formula = steps~interval, data = data, FUN = sum, na.rm=TRUE)
+```
+  
+2. Time-series plot of the total number of steps taken in every interval is
 
+```{r}
+plot(total_steps_per_interval, type = "l")
+```
+  
+3. The 5-minute interval(s) during which the maximum number of steps were tread on a daily basis is
 
+```{r}
+total_steps_per_interval["interval"][total_steps_per_interval["steps"] == max(total_steps_per_interval$steps)]
+```
+  
+  
 ## Imputing missing values
+  
+- The *date* and *interval* columns have no unassigned values
 
+```{r}
+sum(is.na(data$date)) + sum(is.na(data$interval))
+```
+  
+- The NAs in the **steps** column are
 
+```{r}
+sum(is.na(data$steps))
+```
+  
+- The strategy adopted to deal with *NAs* in the **steps** column is to fill them with the average number of steps tread over such an interval on any day
 
+```{r}
+
+non_na_days_count = nrow(total_steps_per_day)
+average_steps_per_interval_per_day <- total_steps_per_interval
+average_steps_per_interval_per_day$steps <- total_steps_per_interval$steps / non_na_days_count
+
+cleaned_data <- read.csv(file = "activity.csv")
+cleaned_data$date <- ymd(cleaned_data$date)
+
+for (i in 1:nrow(cleaned_data))
+{
+    if(is.na(cleaned_data[i, "steps"]))
+    {
+        cleaned_data[i, "steps"] = average_steps_per_interval_per_day["steps"][average_steps_per_interval_per_day["interval"] == cleaned_data[i, "interval"]]
+    }
+}
+```
+  
+- Computing the aggregate information carrying the total number of steps treaded on each day 
+
+```{r}
+total_steps_per_day2 <- aggregate(formula = steps~date, data = cleaned_data, FUN = sum, na.rm=TRUE)
+```
+  
+- Plot of the total number of steps treaded everyday
+
+```{r}
+par(mfrow = c(1, 2))
+plot(total_steps_per_day2, type = "l")
+barplot(height = total_steps_per_day2$steps, xlab = "date", ylab = "steps")
+```
+  
+- Mean total number of steps taken per day is
+
+```{r}
+round(mean(total_steps_per_day2$steps))
+```
+  
+- Median total number of steps taken per day is
+
+```{r}
+round(median(total_steps_per_day2$steps))
+```
+  
+**As the mean steps per interval per day were injected to remove NAs, the mean & median values of the total number of steps taken per day remains unchanged**
+  
+- The plots for total daily number of steps with the missing data and without the missing data are
+
+```{r}
+par(mfrow = c(1, 2))
+plot(total_steps_per_day, type = "l", col="red", main = "Clean data overlapping Old data")
+lines(total_steps_per_day2, type = "l", col="green")
+plot(total_steps_per_day2, type = "l", col="green", main = "Old data overlapping Clean data")
+lines(total_steps_per_day, type = "l", col="red")
+```
+  
+**From the heavy overlap, we can conclude that there's only a small impact of imputing missing data on the estimates of the daily number of steps**
+  
+  
 ## Are there differences in activity patterns between weekdays and weekends?
+  
+- Creating the factor variable segregating the day as a weekday or a weekend
+
+```{r}
+cleaned_data$day_status <- ifelse(is.element(weekdays(cleaned_data$date), c("Saturday", "Sunday")), "weekend", "weekday")
+cleaned_data$day_status <- as.factor(cleaned_data$day_status)
+```
+  
+- Average number of steps treaded per interval on any weekday is
+
+```{r}
+average_steps_per_interval_on_weekday <- aggregate(formula = steps~interval, data = cleaned_data, subset = day_status == "weekday", FUN = mean, na.rm=TRUE)
+```
+  
+- Average number of steps treaded per interval on any weekend is
+
+```{r}
+average_steps_per_interval_on_weekend <- aggregate(formula = steps~interval, data = cleaned_data, subset = day_status == "weekend", FUN = mean, na.rm=TRUE)
+```
+  
+- The plots of the 5-minute interval and the average number of steps tread, averaged across all weekdays&weekends are
+
+```{r}
+par(mfrow = c(2, 1))
+plot(average_steps_per_interval_on_weekend, type = "l", main = "Weekend")
+plot(average_steps_per_interval_on_weekday, type = "l", main = "Weekday")
+```
